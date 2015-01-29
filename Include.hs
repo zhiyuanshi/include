@@ -42,7 +42,7 @@ skipToEnd (s:rest) =
 parseIncludeArgsPart :: String -> Directive
 parseIncludeArgsPart argsPart =
   if length args >= 2
-     then Include (args !! 0) (Just (args !! 1))
+     then Include (args !! 0) (Just (drop 1 (args !! 1)))
      else Include (args !! 0) Nothing
   where args = words argsPart
 
@@ -79,6 +79,7 @@ fetchFileSection filePath tag =
 locate :: Tag -> String -> (Int, Int)
 locate tag s =
   let tagLineNos = map (+1) $ findIndices (("-- @" ++ tag) `isPrefixOf`) (lines s) in
+                                          -- FIXME: If one tag is the prefix of another...
   case tagLineNos of
     []          -> error ("tag not found: " ++ tag)
     [tagLineNo] ->
