@@ -60,7 +60,7 @@ emitOne (D (Include filePath language maybeTag)) =
                Nothing  -> fetchFile        filePath
                Just tag -> fetchFileSection filePath tag
      return $
-       unlines [ unwords ["% #include", filePath, language, case maybeTag of { Nothing -> ""; Just tag -> "@" ++ tag}
+       unlines [ unwords ["% #include", filePath, language, case maybeTag of { Nothing -> ""; Just tag -> "@" ++ tag}]
                , "\\begin{minted}{" ++ language ++ "}"
                , body
                , "\\end{minted}"
