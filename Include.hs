@@ -12,8 +12,10 @@ import Data.Maybe
 
 -- Abstract syntax of a LaTeX source file
 data AbstractLine = S String | D Directive
-data Directive = Include FilePath (Maybe Tag)
-type Tag = String
+data Directive = Include FilePath Language (Maybe Tag)
+type Language = String
+type Tag      = String
+
 type Processor = String -> IO String
 
 
@@ -41,9 +43,9 @@ skipToEnd (s:rest) =
 
 parseIncludeArgsPart :: String -> Directive
 parseIncludeArgsPart argsPart =
-  if length args >= 2
-     then Include (args !! 0) (Just (drop 1 (args !! 1)))
-     else Include (args !! 0) Nothing
+  if length args >= 3
+     then Include (args !! 0) (args !! 1) (Just (drop 1 (args !! 2)))
+     else Include (args !! 0) (args !! 1) Nothing
   where args = words argsPart
 
 
@@ -53,24 +55,27 @@ emit = liftM unlines . mapM emitOne
 
 emitOne :: AbstractLine -> IO String
 emitOne (S s) = return s
-emitOne (D (Include filePath maybeTag)) =
+emitOne (D (Include filePath language maybeTag)) =
   do body <- case maybeTag of
                Nothing  -> fetchFile        filePath
                Just tag -> fetchFileSection filePath tag
      return $
-       unlines [ "% #include " ++ filePath ++ " " ++ fromMaybe "" maybeTag
-               , "\\begin{minted}{haskell}"
+       unlines [ unwords ["% #include", filePath, language, case maybeTag of { Nothing -> ""; Just tag -> "@" ++ tag}
+               , "\\begin{minted}{" ++ language ++ "}"
                , body
                , "\\end{minted}"
                , "% #end"]
 
 
 fetchFile :: FilePath -> IO String
-fetchFile = liftM strip . readFile
+fetchFile filePath =
+  do putStrLn ("Fetching " ++ filePath)
+     liftM strip (readFile filePath)
 
 fetchFileSection :: FilePath -> Tag -> IO String
 fetchFileSection filePath tag =
-  do content <- readFile filePath
+  do putStrLn ("Fetching section " ++ tag ++ " from " ++ filePath)
+     content <- readFile filePath
      let (from, to) = locate tag content
      return $ (strip . unlines . slice (from, to) . lines) content
 
@@ -102,7 +107,8 @@ strip  = rstrip . lstrip
 -- | Run the given file processor on the file path.
 run :: Processor -> FilePath -> IO ()
 run process filePath =
-  do -- Try to backup the old file first
+  do putStrLn ("Processing " ++ filePath)
+     -- Try to backup the old file first
      copyFile filePath (filePath ++ "-old")
 
      -- Read and process the file
